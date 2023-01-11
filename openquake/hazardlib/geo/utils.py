@@ -383,6 +383,18 @@ def check_extent(lons, lats, msg=''):
     return int(dx), int(dy), int(dz)
 
 
+def get_bbox(lons, lats):
+    """
+    :returns: the bounding box minlon, minlat, maxlon, maxlat
+    """
+    min_lon, max_lon = lons.min(), lons.max()
+    if cross_idl(min_lon, max_lon):
+        lons %= 360
+        return lons.min(), lats.min(), lons.max(), lats.max()
+    else:
+        return min_lon, lats.min(), max_lon, lats.max()
+
+
 def get_bounding_box(obj, maxdist):
     """
     Return the dilated bounding box of a geometric object.
@@ -402,10 +414,7 @@ def get_bounding_box(obj, maxdist):
             lats = numpy.array([loc.latitude for loc in obj])
         else:  # assume an array with fields lon, lat
             lons, lats = obj['lon'], obj['lat']
-        min_lon, max_lon = lons.min(), lons.max()
-        if cross_idl(min_lon, max_lon):
-            lons %= 360
-        bbox = lons.min(), lats.min(), lons.max(), lats.max()
+        bbox = get_bbox(lons, lats)
     a1 = min(maxdist * KM_TO_DEGREES, 90)
     a2 = angular_distance(maxdist, bbox[1], bbox[3])
     delta = bbox[2] - bbox[0] + 2 * a2

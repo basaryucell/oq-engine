@@ -30,7 +30,8 @@ from openquake.hazardlib.source.non_parametric import (
     NonParametricSeismicSource as NP)
 from openquake.hazardlib.geo.surface.kite_fault import geom_to_kite
 from openquake.hazardlib.geo.surface.multi import MultiSurface
-from openquake.hazardlib.geo.utils import angular_distance, KM_TO_DEGREES
+from openquake.hazardlib.geo.utils import (
+    get_bbox, angular_distance, KM_TO_DEGREES)
 from openquake.hazardlib.source.base import BaseSeismicSource
 
 F32 = np.float32
@@ -190,17 +191,29 @@ class MultiFaultSource(BaseSeismicSource):
         if self.hdf5path:
             with hdf5.File(self.hdf5path, 'r') as f:
                 geoms = f['multi_fault_sections'][:]
-            s = [geom_to_kite(geom) for geom in geoms]
+            sections = [geom_to_kite(geom) for geom in geoms]
         else:
-            s = self.sections
-        surfaces = []
-        for sec in s:
+            sections = self.sections
+        lons, lats = [], []
+        for sec in sections:
             if isinstance(sec, MultiSurface):
-                surfaces.extend(sec.surfaces)
+                for surf in sec.surfaces:
+                    lons.extend(surf.mesh.lons)
+                    lats.extend(surf.mesh.lats)
             else:
-                surfaces.append(sec)
-        multi_surf = MultiSurface(surfaces)
-        west, east, north, south = multi_surf.get_bounding_box()
+                lons.extend(sec.mesh.lons)
+                lats.extend(sec.mesh.lats)
+        west, east, north, south = get_bbox(lons, lats)
         a1 = maxdist * KM_TO_DEGREES
         a2 = angular_distance(maxdist, north, south)
         return west - a2, south - a1, east + a2, north + a1
+
+
+def _bbox(sections):
+    min_lon, max_lon, min_lat, max_lat = [], [], [], []
+    for sec in sections:
+        min_lon.append(sec.mesh.lons.min())
+        max_lon.append(sec.mesh.lons.max())
+        min_lat.append(sec.mesh.lats.min())
+        max_lat.append(sec.mesh.lats.max())
+    return min(min_lon), min(min_lat), max(max_lon), max(max_lat)
