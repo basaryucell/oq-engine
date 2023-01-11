@@ -203,17 +203,8 @@ class MultiFaultSource(BaseSeismicSource):
             else:
                 lons.extend(sec.mesh.lons)
                 lats.extend(sec.mesh.lats)
-        west, east, north, south = get_bbox(lons, lats)
+        west, east, north, south = get_bbox(F32(lons), F32(lats))
         a1 = maxdist * KM_TO_DEGREES
         a2 = angular_distance(maxdist, north, south)
         return west - a2, south - a1, east + a2, north + a1
 
-
-def _bbox(sections):
-    min_lon, max_lon, min_lat, max_lat = [], [], [], []
-    for sec in sections:
-        min_lon.append(sec.mesh.lons.min())
-        max_lon.append(sec.mesh.lons.max())
-        min_lat.append(sec.mesh.lats.min())
-        max_lat.append(sec.mesh.lats.max())
-    return min(min_lon), min(min_lat), max(max_lon), max(max_lat)

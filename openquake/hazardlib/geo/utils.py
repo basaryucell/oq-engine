@@ -387,12 +387,13 @@ def get_bbox(lons, lats):
     """
     :returns: the bounding box minlon, minlat, maxlon, maxlat
     """
-    min_lon, max_lon = lons.min(), lons.max()
+    nmin, nmax = numpy.nanmin, numpy.nanmax
+    min_lon, max_lon = nmin(lons), nmax(lons)
     if cross_idl(min_lon, max_lon):
         lons %= 360
-        return lons.min(), lats.min(), lons.max(), lats.max()
+        return nmin(lons), nmin(lats), nmax(lons), nmax(lats)
     else:
-        return min_lon, lats.min(), max_lon, lats.max()
+        return min_lon, nmin(lats), max_lon, nmax(lats)
 
 
 def get_bounding_box(obj, maxdist):
