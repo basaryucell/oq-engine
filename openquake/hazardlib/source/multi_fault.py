@@ -31,7 +31,7 @@ from openquake.hazardlib.source.non_parametric import (
 from openquake.hazardlib.geo.surface.kite_fault import geom_to_kite
 from openquake.hazardlib.geo.surface.multi import MultiSurface
 from openquake.hazardlib.geo.utils import (
-    get_bbox, angular_distance, KM_TO_DEGREES)
+    get_bbox, get_spherical_bounding_box, angular_distance, KM_TO_DEGREES)
 from openquake.hazardlib.source.base import BaseSeismicSource
 
 F32 = np.float32
@@ -198,13 +198,15 @@ class MultiFaultSource(BaseSeismicSource):
         for sec in sections:
             if isinstance(sec, MultiSurface):
                 for surf in sec.surfaces:
-                    lons.extend(surf.mesh.lons)
-                    lats.extend(surf.mesh.lats)
+                    west, east, north, south = surf.get_bounding_box()
+                    lons.extend([west, east])
+                    lats.extend([north, south])
             else:
-                lons.extend(sec.mesh.lons)
-                lats.extend(sec.mesh.lats)
-        west, east, north, south = get_bbox(F32(lons), F32(lats))
+                west, south, east, north = get_bbox(
+                    sec.mesh.lons, sec.mesh.lats)
+                lons.extend([west, east])
+                lats.extend([north, south])
+        west, east, north, south = get_spherical_bounding_box(lons, lats)
         a1 = maxdist * KM_TO_DEGREES
         a2 = angular_distance(maxdist, north, south)
         return west - a2, south - a1, east + a2, north + a1
-
