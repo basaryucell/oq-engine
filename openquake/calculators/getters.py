@@ -19,7 +19,7 @@
 import operator
 import numpy
 
-from openquake.baselib import general, hdf5
+from openquake.baselib import general, hdf5, performance
 from openquake.hazardlib import probability_map, stats
 from openquake.hazardlib.calc.disagg import to_rates, to_probs
 from openquake.hazardlib.source.rupture import (
@@ -190,16 +190,18 @@ class PmapGetter(object):
         with hdf5.File(self.filename) as dstore:
             for start, stop in self.slices:
                 poes_df = dstore.read_df('_poes', slc=slice(start, stop))
-                # num_sids = len(poes_df.sid.unique())
-                # print(num_sids, start, stop)
-                for sid, df in poes_df.groupby('sid'):
+                for sid, s0, s1 in performance.idx_start_stop(
+                        poes_df.sid.to_numpy()):
                     try:
                         array = self._pmap[sid].array
                     except KeyError:
                         array = numpy.zeros((self.L, G))
                         self._pmap[sid] = probability_map.ProbabilityCurve(
                             array)
-                    array[df.lid, df.gid] = df.poe
+                    lid = poes_df.lid.to_numpy()[s0:s1]
+                    gid = poes_df.gid.to_numpy()[s0:s1]
+                    poe = poes_df.poe.to_numpy()[s0:s1]
+                    array[lid, gid] = poe
         return self._pmap
 
     # used in risk calculations where there is a single site per getter
