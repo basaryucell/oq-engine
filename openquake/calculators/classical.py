@@ -31,7 +31,7 @@ except ImportError:
 from openquake.baselib import (
     performance, parallel, hdf5, config, python3compat, workerpool as w)
 from openquake.baselib.general import (
-    AccumDict, DictArray, block_splitter, groupby, humansize)
+    AccumDict, DictArray, block_splitter, split_in_blocks, groupby, humansize)
 from openquake.hazardlib.contexts import read_cmakers, basename, get_maxsize
 from openquake.hazardlib.calc.hazard_curve import classical as hazclassical
 from openquake.hazardlib.calc import disagg
@@ -642,30 +642,16 @@ class ClassicalCalculator(base.HazardCalculator):
             dstore = self.datastore
         else:
             dstore = self.datastore.parent
-        sites_per_task = int(numpy.ceil(self.N / ct))
         sbs = dstore['_poes/slice_by_sid'][:]
-        sbs['sid'] //= sites_per_task
-        # NB: there is a genious idea here, to split in tasks by using
-        # the formula ``taskno = sites_ids // sites_per_task`` and then
-        # extracting a dictionary of slices for each taskno. This works
-        # since by construction the site_ids are sequential and there are
-        # at most G slices per task. For instance if there are 6 sites
-        # disposed in 2 groups and we want to produce 2 tasks we can use
-        # 012345012345 // 3 = 000111000111 and the slices are
-        # {0: [(0, 3), (6, 9)], 1: [(3, 6), (9, 12)]}
-        slicedic = AccumDict(accum=[])
-        for idx, start, stop in sbs:
-            slicedic[idx].append((start, stop))
-        if not slicedic:
+        if len(sbs) == 0:
             # no hazard, nothing to do, happens in case_60
             return
 
         # using compactify improves the performance of `read PoEs`;
-        # I have measured a 3.5x in the AUS model with 1 rlz
-        allslices = [calc.compactify(slices) for slices in slicedic.values()]
+        allslices = [calc.compactify(blk) for blk in split_in_blocks(sbs, ct)]
         nslices = sum(len(slices) for slices in allslices)
         logging.info('There are %d slices of poes [%.1f per task]',
-                     nslices, nslices / len(slicedic))
+                     nslices, nslices / len(sbs))
         allargs = [
             (getters.PmapGetter(dstore, self.full_lt, slices,
                                 oq.imtls, oq.poes, oq.use_rates),

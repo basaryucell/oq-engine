@@ -316,7 +316,7 @@ def _concat(acc, slc2):
 def compactify(arrayN2):
     """
     :param arrayN2: an array with columns (start, stop)
-    :returns: a shorter array with the same structure
+    :returns: a shorter array of shape (N', 2)
 
     Here is how it works in an example where the first three slices
     are compactified into one while the last slice stays as it is:
@@ -329,10 +329,16 @@ def compactify(arrayN2):
     array([[84384702, 84386062],
            [84387636, 84388028]])
     """
-    if len(arrayN2) == 1:
+    if arrayN2.dtype.names:
+        array = numpy.zeros((len(arrayN2), 2), int)
+        array[:, 0] = arrayN2['start']
+        array[:, 1] = arrayN2['stop']
+    else:
+        array = arrayN2
+    if len(array) == 1:
         # nothing to compactify
-        return arrayN2
-    out = numpy.array(functools.reduce(_concat, arrayN2, []))
+        return array
+    out = numpy.array(functools.reduce(_concat, array, []))
     return out
 
 
