@@ -190,6 +190,8 @@ class PmapGetter(object):
         with hdf5.File(self.filename) as dstore:
             for start, stop in self.slices:
                 poes_df = dstore.read_df('_poes', slc=slice(start, stop))
+                # num_sids = len(poes_df.sid.unique())
+                # print(num_sids, start, stop)
                 for sid, df in poes_df.groupby('sid'):
                     try:
                         array = self._pmap[sid].array

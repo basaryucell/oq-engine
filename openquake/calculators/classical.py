@@ -649,9 +649,6 @@ class ClassicalCalculator(base.HazardCalculator):
 
         # using compactify improves the performance of `read PoEs`;
         allslices = [calc.compactify(s) for s in numpy.array_split(sbs, ct)]
-        nslices = sum(len(slices) for slices in allslices)
-        logging.info('There are %d slices of poes [%.1f per task]',
-                     nslices, nslices / len(sbs))
         allargs = [
             (getters.PmapGetter(dstore, self.full_lt, slices,
                                 oq.imtls, oq.poes, oq.use_rates),
