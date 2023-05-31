@@ -31,7 +31,7 @@ except ImportError:
 from openquake.baselib import (
     performance, parallel, hdf5, config, python3compat, workerpool as w)
 from openquake.baselib.general import (
-    AccumDict, DictArray, block_splitter, split_in_blocks, groupby, humansize)
+    AccumDict, DictArray, block_splitter, groupby, humansize)
 from openquake.hazardlib.contexts import read_cmakers, basename, get_maxsize
 from openquake.hazardlib.calc.hazard_curve import classical as hazclassical
 from openquake.hazardlib.calc import disagg
@@ -648,7 +648,7 @@ class ClassicalCalculator(base.HazardCalculator):
             return
 
         # using compactify improves the performance of `read PoEs`;
-        allslices = [calc.compactify(blk) for blk in split_in_blocks(sbs, ct)]
+        allslices = [calc.compactify(s) for s in numpy.array_split(sbs, ct)]
         nslices = sum(len(slices) for slices in allslices)
         logging.info('There are %d slices of poes [%.1f per task]',
                      nslices, nslices / len(sbs))
