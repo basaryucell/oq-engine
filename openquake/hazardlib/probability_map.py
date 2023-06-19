@@ -274,7 +274,7 @@ def update_pmap_m(arr, poes, inv, rates, probs_occur, weights, idxs, itime):
 
 if numba:
     t = numba.types
-    sig = t.void(t.float64[:, :],                        # pmap
+    sig = t.void(t.float32[:, :],                        # pmap
                  t.float64[:, :],                        # poes
                  t.uint32[:],                            # invs
                  t.float64[:],                           # rates
@@ -283,7 +283,7 @@ if numba:
                  t.float64)                              # itime
     update_pmap_i = compile(sig)(update_pmap_i)
 
-    sig = t.void(t.float64[:, :],                        # pmap
+    sig = t.void(t.float32[:, :],                        # pmap
                  t.float64[:, :],                        # poes
                  t.uint32[:],                            # invs
                  t.float64[:],                           # rates
@@ -347,7 +347,7 @@ class ProbabilityMap(object):
         and build the .sidx array
         """
         assert 0 <= value <= 1, value
-        self.array = numpy.empty(self.shape)
+        self.array = numpy.empty(self.shape, dtype=F32)
         self.array.fill(value)
         return self
 
@@ -404,7 +404,7 @@ class ProbabilityMap(object):
         M = len(imtls)
         P = len(poes)
         L1 = len(imtls[next(iter(imtls))])
-        hmap4 = numpy.zeros((N, M, P, Z))
+        hmap4 = numpy.zeros((N, M, P, Z), dtype=F32)
         for m, imt in enumerate(imtls):
             slc = slice(m*L1, m*L1 + L1)
             for z in range(Z):
@@ -413,7 +413,7 @@ class ProbabilityMap(object):
         return hmap4
 
     def remove_zeros(self):
-        ok = self.array.sum(axis=(1, 2)) > 0
+        ok = self.array.sum(axis=(1, 2)) > 0.
         if ok.sum() == 0:  # avoid empty array
             ok = slice(0, 1)
         new = self.__class__(self.sids[ok], self.shape[1], self.shape[2])
