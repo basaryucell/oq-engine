@@ -246,19 +246,26 @@ def gen_outputs(df, crmodel, rng, monitor):
                 yield out
 
 
-def ebrisk(proxies, cmaker, oqparam, dstore, monitor):
+def gen_ebrisk(allproxies, cmaker, oqparam, dstore, monitor):
     """
-    :param proxies: list of RuptureProxies with the same trt_smr
-    :param cmaker: ContextMaker instance associated to the trt_smr
-    :param oqparam: input parameters
-    :param monitor: a Monitor instance
-    :returns: a dictionary of arrays
+    Launcher of ebrisk tasks
     """
     oqparam.ground_motion_fields = True
-    dic = event_based.event_based(proxies, cmaker, oqparam, dstore, monitor)
-    if len(dic['gmfdata']) == 0:  # no GMFs
-        return {}
-    return event_based_risk(dic['gmfdata'], oqparam, monitor)
+    blocksize = 50
+    n = 0
+    t0 = time.time()
+    for proxies in general.block_splitter(allproxies, blocksize):
+        n += len(proxies)
+        dic = event_based.event_based(proxies, cmaker, oqparam, dstore, monitor)
+        if len(dic['gmfdata']):
+            yield event_based_risk(dic['gmfdata'], oqparam, monitor)
+        rem = allproxies[n:]  # remaining ruptures
+        dt = time.time() - t0
+        if dt > oqparam.time_per_task and len(rem) > 10:
+            half = len(rem) // 2
+            yield gen_ebrisk, rem[:half], cmaker, oqparam, dstore
+            yield gen_ebrisk, rem[half:], cmaker, oqparam, dstore
+            return
 
 
 @base.calculators.add('ebrisk', 'scenario_risk', 'event_based_risk')
@@ -266,7 +273,7 @@ class EventBasedRiskCalculator(event_based.EventBasedCalculator):
     """
     Event based risk calculator generating event loss tables
     """
-    core_task = ebrisk
+    core_task = gen_ebrisk
     is_stochastic = True
     precalc = 'event_based'
     accept_precalc = ['scenario', 'event_based', 'event_based_risk', 'ebrisk']
@@ -415,7 +422,7 @@ class EventBasedRiskCalculator(event_based.EventBasedCalculator):
                                   % oq.inputs['job_ini'])
             full_lt = self.datastore['full_lt']
             smap = event_based.starmap_from_rups(
-                ebrisk, oq, full_lt, self.sitecol, self.datastore,
+                gen_ebrisk, oq, full_lt, self.sitecol, self.datastore,
                 self.save_tmp)
             smap.reduce(self.agg_dicts)
             if self.gmf_bytes == 0:
