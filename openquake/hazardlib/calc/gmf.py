@@ -82,18 +82,21 @@ def set_max_min(array, mean, max_iml, min_iml, mmi_index):
                 array[n, :, e] = 0
 
 
-@compile("uint32[:,:](uint32[:],uint32[:],uint32[:],uint32[:])")
+@compile("(uint32[:],uint32[:],uint32[:],uint32[:])")
 def build_eid_sid_rlz(allrlzs, sids, eids, rlzs):
-    eid_sid_rlz = numpy.zeros((3, len(sids) * len(eids)), U32)
+    NE = len(sids) * len(eids)
+    eid = numpy.zeros(NE, U32)
+    sid = numpy.zeros(NE, U32)
+    rlz = numpy.zeros(NE, U32)
     idx = 0
-    for rlz in allrlzs:
-        for eid in eids[rlzs == rlz]:
-            for sid in sids:
-                eid_sid_rlz[0, idx] = eid
-                eid_sid_rlz[1, idx] = sid
-                eid_sid_rlz[2, idx] = rlz
+    for r in allrlzs:
+        for e in eids[rlzs == r]:
+            for s in sids:
+                eid[idx] = e
+                sid[idx] = s
+                rlz[idx] = r
                 idx += 1
-    return eid_sid_rlz
+    return eid, sid, rlz
 
 
 class GmfComputer(object):
@@ -245,11 +248,11 @@ class GmfComputer(object):
         gmv = data.pop('gmv')
 
         # slow part, building an array of shape (3, NE)
-        eid_sid_rlz = build_eid_sid_rlz(self.rlzs, self.ctx.sids,
-                                        self.eid, self.rlz)
-        df = pandas.DataFrame({'eid': eid_sid_rlz[0],
-                               'sid': eid_sid_rlz[1],
-                               'rlz': eid_sid_rlz[2]})
+        eid, sid, rlz = build_eid_sid_rlz(self.rlzs, self.ctx.sids,
+                                          self.eid, self.rlz)
+        df = pandas.DataFrame({'eid': eid,
+                               'sid': sid,
+                               'rlz': rlz})
         tot = numpy.zeros(self.N * self.E)
         for m, gmv_field in enumerate(self.gmv_fields):
             df[gmv_field] = gmv[:, m].T.reshape(-1)
