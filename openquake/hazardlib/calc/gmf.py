@@ -83,7 +83,7 @@ def set_max_min(array, mean, max_iml, min_iml, mmi_index):
 
 
 @compile("(uint32[:],uint32[:],uint32[:],uint32[:], float32[:,:,:])")
-def build_eid_sid_rlz_gmvs(allrlzs, sids, eids, rlzs, gmv):
+def _build5(allrlzs, sids, eids, rlzs, gmv):
     M = len(gmv)
     NE = len(sids) * len(eids)
     eid = numpy.zeros(NE, U32)
@@ -251,7 +251,7 @@ class GmfComputer(object):
         """
         for key, val in sorted(data.items()):
             data[key] = numpy.concatenate(data[key], axis=-1, dtype=F32)
-        eid, sid, rlz, gmvs, ok = build_eid_sid_rlz_gmvs(
+        eid, sid, rlz, gmvs, ok = _build5(
             self.rlzs, self.ctx.sids, self.eid, self.rlz, data.pop('gmv'))
         df = pandas.DataFrame({'eid': eid, 'sid': sid, 'rlz': rlz})
         for m, gmv_field in enumerate(self.gmv_fields):
