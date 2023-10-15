@@ -245,14 +245,12 @@ class GmfComputer(object):
         """
         for key, val in sorted(data.items()):
             data[key] = numpy.concatenate(data[key], axis=-1, dtype=F32)
-        gmv = data.pop('gmv')
+        gmv = data.pop('gmv')  # shape (N, M, E)
 
         # slow part, building an array of shape (3, NE)
         eid, sid, rlz = build_eid_sid_rlz(self.rlzs, self.ctx.sids,
                                           self.eid, self.rlz)
-        df = pandas.DataFrame({'eid': eid,
-                               'sid': sid,
-                               'rlz': rlz})
+        df = pandas.DataFrame({'eid': eid, 'sid': sid, 'rlz': rlz})
         tot = numpy.zeros(self.N * self.E)
         for m, gmv_field in enumerate(self.gmv_fields):
             df[gmv_field] = gmv[:, m].T.reshape(-1)
@@ -294,8 +292,7 @@ class GmfComputer(object):
         # sets self.eps
         M = len(self.imts)
         E = len(idxs)
-        result = numpy.zeros(
-            (len(self.imts), len(self.ctx.sids), E), F32)
+        result = numpy.zeros((M, self.N, E), F32)
         ccdist = self.cross_correl.distribution
         # build arrays of random numbers of shape (M, N, E) and (M, E)
         intra_eps = [ccdist.rvs((self.N, E), rng) for _ in range(M)]
