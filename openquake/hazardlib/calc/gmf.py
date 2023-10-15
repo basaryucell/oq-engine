@@ -90,8 +90,10 @@ def build_eid_sid_rlz_gmvs(allrlzs, sids, eids, rlzs, gmv):
     sid = numpy.zeros(NE, U32)
     rlz = numpy.zeros(NE, U32)
     gmvs = numpy.zeros((M, NE), F32)
+    tot = numpy.zeros(NE, F32)
     for m in range(M):
-        gmvs[m, :] = gmv[m].T.flatten()
+        gmvs[m] = gmv[m].T.flatten()
+        tot += gmvs[m]
     idx = 0
     for r in allrlzs:
         for e in eids[rlzs == r]:
@@ -100,7 +102,7 @@ def build_eid_sid_rlz_gmvs(allrlzs, sids, eids, rlzs, gmv):
                 sid[idx] = s
                 rlz[idx] = r
                 idx += 1
-    return eid, sid, rlz, gmvs
+    return eid, sid, rlz, gmvs, tot > 0
 
 
 class GmfComputer(object):
@@ -249,16 +251,14 @@ class GmfComputer(object):
         """
         for key, val in sorted(data.items()):
             data[key] = numpy.concatenate(data[key], axis=-1, dtype=F32)
-        eid, sid, rlz, gmvs = build_eid_sid_rlz_gmvs(
+        eid, sid, rlz, gmvs, ok = build_eid_sid_rlz_gmvs(
             self.rlzs, self.ctx.sids, self.eid, self.rlz, data.pop('gmv'))
         df = pandas.DataFrame({'eid': eid, 'sid': sid, 'rlz': rlz})
-        tot = numpy.zeros(self.N * self.E)
         for m, gmv_field in enumerate(self.gmv_fields):
             df[gmv_field] = gmvs[m]
-            tot += gmvs[m]
         for key, val in data.items():
             df[key] = val
-        return df[tot > 0]
+        return df[ok]
 
     def compute_all(self, max_iml=None,
                     mmon=Monitor(), cmon=Monitor(), umon=Monitor()):
