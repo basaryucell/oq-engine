@@ -240,6 +240,7 @@ class ConditionedGmfComputer(GmfComputer):
                 array = self.compute(gsim,rlzs, mea, tau, phi, rng)
             with umon:
                 self.update(data, array, rlzs, [mea, tau+phi, tau, phi])
+                self.gmv[:, :, numpy.isin(self.rlz, rlzs)] = array  # MNE
         with umon:
             return self.strip_zeros(data)
 

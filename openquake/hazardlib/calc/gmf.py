@@ -193,11 +193,12 @@ class GmfComputer(object):
             dic = vars(self.ebrupture)
         eid, rlz = get_eid_rlz(dic, self.rlzs, self.cmaker.scenario)
         self.eid, self.rlz = eid, rlz
-        self.N = len(self.ctx)
+        self.N = N= len(self.ctx)
         self.E = E = len(self.eid)
         self.M = M = len(self.gmv_fields)
         self.sig = numpy.zeros((E, M), F32)  # same for all events
         self.eps = numpy.zeros((E, M), F32)  # not the same
+        self.gmv = numpy.zeros((M, N, E), F32)
 
     def build_sig_eps(self, se_dt):
         """
@@ -229,7 +230,6 @@ class GmfComputer(object):
             M = len(self.cmaker.imts)
             max_iml = numpy.full(M, numpy.inf, float)
         set_max_min(array, mean, max_iml, min_iml, mmi_index)
-        data['gmv'].append(array)  # shape (M, N, E)
 
         if self.sec_perils:
             n = 0
@@ -252,7 +252,7 @@ class GmfComputer(object):
         for key, val in sorted(data.items()):
             data[key] = numpy.concatenate(data[key], axis=-1, dtype=F32)
         eid, sid, rlz, gmvs, ok = _build5(
-            self.rlzs, self.ctx.sids, self.eid, self.rlz, data.pop('gmv'))
+            self.rlzs, self.ctx.sids, self.eid, self.rlz, self.gmv)
         df = pandas.DataFrame({'eid': eid, 'sid': sid, 'rlz': rlz})
         for m, gmv_field in enumerate(self.gmv_fields):
             df[gmv_field] = gmvs[m]
@@ -267,7 +267,6 @@ class GmfComputer(object):
         """
         with mmon:
             mean_stds = self.cmaker.get_mean_stds([self.ctx])  # (4, G, M, N)
-
         rng = numpy.random.default_rng(self.seed)
         data = AccumDict(accum=[])
         for g, (gs, rlzs) in enumerate(self.cmaker.gsims.items()):
@@ -276,9 +275,10 @@ class GmfComputer(object):
             if E == 0:  # crucial for performance
                 continue
             with cmon:
-                array = self.compute(gs, idxs, mean_stds[:, g], rng)  # MNE
+                array = self.compute(gs, idxs, mean_stds[:, g], rng)
             with umon:
                 self.update(data, array, rlzs, mean_stds[:, g], max_iml)
+                self.gmv[:, :, idxs] = array  # shape (M, N, E)
         with umon:
             return self.strip_zeros(data)
 
