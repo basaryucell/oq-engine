@@ -62,7 +62,7 @@ def exp(vals, notMMI):
 
 @compile("(float32[:,:,:],float64[:,:],float64[:],float64[:],int64)")
 def set_max_min(array, mean, max_iml, min_iml, mmi_index):
-    N, M, E = array.shape
+    M, N, E = array.shape
 
     # manage max_iml
     for m in range(M):
@@ -70,16 +70,16 @@ def set_max_min(array, mean, max_iml, min_iml, mmi_index):
         for n in range(N):
             maxval = exp(mean[m, n], m!=mmi_index)
             for e in range(E):
-                val = array[n, m, e]
+                val = array[m, n, e]
                 if val > iml:
-                    array[n, m, e] = maxval
+                    array[m, n, e] = maxval
 
     # manage min_iml
     for n in range(N):
         for e in range(E):
             # set to zero only if all IMTs are below the thresholds
-            if (array[n, :, e] < min_iml).all():
-                array[n, :, e] = 0
+            if (array[:, n, e] < min_iml).all():
+                array[:, n, e] = 0
 
 
 @compile("(uint32[:],uint32[:],uint32[:],uint32[:])")
@@ -224,7 +224,7 @@ class GmfComputer(object):
             M = len(self.cmaker.imts)
             max_iml = numpy.full(M, numpy.inf, float)
         set_max_min(array, mean, max_iml, min_iml, mmi_index)
-        data['gmv'].append(array)
+        data['gmv'].append(array)  # shape (M, N, E)
 
         if self.sec_perils:
             n = 0
@@ -232,7 +232,7 @@ class GmfComputer(object):
                 eids = self.eid[self.rlz == rlz]
                 E = len(eids)
                 for e, eid in enumerate(eids):
-                    gmfa = array[:, :, n + e].T  # shape (M, N)
+                    gmfa = array[:, :, n + e]  # shape (M, N)
                     for sp in self.sec_perils:
                         o = sp.compute(mag, zip(self.imts, gmfa), self.ctx)
                         for outkey, outarr in zip(sp.outputs, o):
@@ -245,7 +245,7 @@ class GmfComputer(object):
         """
         for key, val in sorted(data.items()):
             data[key] = numpy.concatenate(data[key], axis=-1, dtype=F32)
-        gmv = data.pop('gmv')  # shape (N, M, E)
+        gmv = data.pop('gmv')  # shape (M, N, E)
 
         # slow part, building an array of shape (3, NE)
         eid, sid, rlz = build_eid_sid_rlz(self.rlzs, self.ctx.sids,
@@ -253,7 +253,7 @@ class GmfComputer(object):
         df = pandas.DataFrame({'eid': eid, 'sid': sid, 'rlz': rlz})
         tot = numpy.zeros(self.N * self.E)
         for m, gmv_field in enumerate(self.gmv_fields):
-            df[gmv_field] = gmv[:, m].T.reshape(-1)
+            df[gmv_field] = gmv[m].T.reshape(-1)
             tot += df[gmv_field]
         for key, val in data.items():
             df[key] = val
@@ -275,7 +275,7 @@ class GmfComputer(object):
             if E == 0:  # crucial for performance
                 continue
             with cmon:
-                array = self.compute(gs, idxs, mean_stds[:, g], rng)  # NME
+                array = self.compute(gs, idxs, mean_stds[:, g], rng)  # MNE
             with umon:
                 self.update(data, array, rlzs, mean_stds[:, g], max_iml)
         with umon:
@@ -310,7 +310,7 @@ class GmfComputer(object):
         if self.amplifier:
             self.amplifier.amplify_gmfs(
                 self.ctx.ampcode, result, self.imts, self.seed)
-        return result.transpose(1, 0, 2)
+        return result
 
     def _compute(self, mean_stds, m, imt, gsim, intra_eps, idxs):
         # sets self.sig
@@ -412,4 +412,4 @@ def ground_motion_fields(rupture, sites, imts, gsim, truncation_level,
     mean_stds = cmaker.get_mean_stds([gc.ctx])[:, 0]
     res = gc.compute(gsim, U32([0]), mean_stds,
                      numpy.random.default_rng(seed))
-    return {imt: res[:, m] for m, imt in enumerate(gc.imts)}
+    return {imt: res[m] for m, imt in enumerate(gc.imts)}
