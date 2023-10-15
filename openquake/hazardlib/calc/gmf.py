@@ -218,7 +218,6 @@ class GmfComputer(object):
         of GMVs. Also indirectly updates the arrays .sig and .eps.
         """
         min_iml = self.cmaker.min_iml
-        mag = self.ebrupture.rupture.mag
         mean = mean_stds[0]
         if len(mean.shape) == 3:  # shape (M, N, 1) for conditioned gmfs
             mean = mean[:, :, 0]
@@ -234,6 +233,7 @@ class GmfComputer(object):
 
         if self.sec_perils:
             n = 0
+            mag = self.ebrupture.rupture.mag
             for rlz in rlzs:
                 eids = self.eid[self.rlz == rlz]
                 E = len(eids)
